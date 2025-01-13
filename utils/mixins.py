@@ -10,7 +10,7 @@ import json
 
 import torch
 
-from utils.obj import write_obj
+from instant_nsr_pl.utils.obj import write_obj
 
 
 class SaverMixin():
