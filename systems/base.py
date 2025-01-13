@@ -2,8 +2,8 @@ import pytorch_lightning as pl
 
 import models
 from systems.utils import parse_optimizer, parse_scheduler, update_module_step
-from utils.mixins import SaverMixin
-from utils.misc import config_to_primitive, get_rank
+from instant_nsr_pl.utils.mixins import SaverMixin
+from instant_nsr_pl.utils.misc import config_to_primitive, get_rank
 
 
 class BaseSystem(pl.LightningModule, SaverMixin):
@@ -18,6 +18,8 @@ class BaseSystem(pl.LightningModule, SaverMixin):
         self.rank = get_rank()
         self.prepare()
         self.model = models.make(self.config.model.name, self.config.model)
+        self.validation_step_outputs = []
+        self.test_step_outputs = []
     
     def prepare(self):
         pass
@@ -56,17 +58,17 @@ class BaseSystem(pl.LightningModule, SaverMixin):
         self.preprocess_data(batch, 'train')
         update_module_step(self.model, self.current_epoch, self.global_step)
     
-    def on_validation_batch_start(self, batch, batch_idx, dataloader_idx):
+    def on_validation_batch_start(self, batch, batch_idx, dataloader_idx=0):
         self.dataset = self.trainer.datamodule.val_dataloader().dataset
         self.preprocess_data(batch, 'validation')
         update_module_step(self.model, self.current_epoch, self.global_step)
     
-    def on_test_batch_start(self, batch, batch_idx, dataloader_idx):
+    def on_test_batch_start(self, batch, batch_idx, dataloader_idx=0):
         self.dataset = self.trainer.datamodule.test_dataloader().dataset
         self.preprocess_data(batch, 'test')
         update_module_step(self.model, self.current_epoch, self.global_step)
 
-    def on_predict_batch_start(self, batch, batch_idx, dataloader_idx):
+    def on_predict_batch_start(self, batch, batch_idx, dataloader_idx=0):
         self.dataset = self.trainer.datamodule.predict_dataloader().dataset
         self.preprocess_data(batch, 'predict')
         update_module_step(self.model, self.current_epoch, self.global_step)
@@ -95,7 +97,7 @@ class BaseSystem(pl.LightningModule, SaverMixin):
         pass
     """
     
-    def validation_epoch_end(self, out):
+    def on_validation_epoch_end(self, outs):
         """
         Gather metrics from all devices, compute mean.
         Purge repeated results using data index.
@@ -105,7 +107,7 @@ class BaseSystem(pl.LightningModule, SaverMixin):
     def test_step(self, batch, batch_idx):        
         raise NotImplementedError
     
-    def test_epoch_end(self, out):
+    def on_test_epoch_end(self):
         """
         Gather metrics from all devices, compute mean.
         Purge repeated results using data index.

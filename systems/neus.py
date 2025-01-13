@@ -182,6 +182,10 @@ class NeuSSystem(BaseSystem):
             {'type': 'grayscale', 'img': out['depth'].view(H, W), 'kwargs': {}},
             {'type': 'rgb', 'img': out['comp_normal'].view(H, W, 3), 'kwargs': {'data_format': 'HWC', 'data_range': (-1, 1)}}
         ])
+        self.validation_step_outputs.append({
+            'psnr': psnr,
+            'index': batch['index']
+        })
         return {
             'psnr': psnr,
             'index': batch['index']
@@ -194,8 +198,8 @@ class NeuSSystem(BaseSystem):
         pass
     """
     
-    def validation_epoch_end(self, out):
-        out = self.all_gather(out)
+    def on_validation_epoch_end(self):
+        out = self.all_gather(self.validation_step_outputs)
         if self.trainer.is_global_zero:
             out_set = {}
             for step_out in out:
@@ -223,17 +227,21 @@ class NeuSSystem(BaseSystem):
             {'type': 'grayscale', 'img': out['depth'].view(H, W), 'kwargs': {}},
             {'type': 'rgb', 'img': out['comp_normal'].view(H, W, 3), 'kwargs': {'data_format': 'HWC', 'data_range': (-1, 1)}}
         ])
+        self.test_step_outputs.append({
+            'psnr': psnr,
+            'index': batch['index']
+        })
         return {
             'psnr': psnr,
             'index': batch['index']
         }      
     
-    def test_epoch_end(self, out):
+    def on_test_epoch_end(self):
         """
         Synchronize devices.
         Generate image sequence using test outputs.
         """
-        out = self.all_gather(out)
+        out = self.all_gather(self.test_step_outputs)
         if self.trainer.is_global_zero:
             out_set = {}
             for step_out in out:
